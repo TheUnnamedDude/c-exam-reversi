@@ -17,7 +17,6 @@ int main(void) {
         if (nPoints > 0) {
             update_tile(&board, xPos, yPos, current_tile);
             for (int i = 0; i < nPoints; i++) {
-                //  printf("x=%d y=%d\n", points[i].x, points[i].y);
                 update_tile(&board, points[i].x, points[i].y, current_tile);
             }
             if (current_tile == WHITE) {
@@ -27,7 +26,6 @@ int main(void) {
             }
         }
     }
-    printf("%d", nPoints);
     close_board(&board);
     return 0;
 }

@@ -4,16 +4,16 @@
 #define NUM_DIRECTIONS 8
 
 int check_add(Board *board, int x_pos, int y_pos, Tile tile, Point points[MAX_TILE_CHANGE]) {
-    int n_points = 0;
     if (board->tiles[x_pos][y_pos] != NONE) {
         return 0;
     }
+    int n_points = 0;
     const Point directions[NUM_DIRECTIONS] = { {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1} };
     for (int i = 0; i < NUM_DIRECTIONS; i++) {
         int tiles_found = n_points;
         int x = x_pos;
         int y = y_pos;
-        while (x >= 0 && x < BOARD_WIDTH && y >= 0 && y < BOARD_HEIGHT )  {
+        while (x >= 0 && x < BOARD_WIDTH && y >= 0 && y < BOARD_HEIGHT)  {
             if (tiles_found >= MAX_TILE_CHANGE + 1) {
                 return n_points;
             }

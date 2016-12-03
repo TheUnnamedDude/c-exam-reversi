@@ -1,7 +1,7 @@
 # TODO: Change this back to using gcc when done writing
 CC=clang
 CFLAGS=-I -Wall -Wextra -std=c11 -O0 -g
-HEADERS=board.h
+HEADERS=board.h gamelogic.h
 EXEC=exam
 SOURCES=main.c board.c gamelogic.c
 OBJECTS=$(SOURCES:.c=.o)

@@ -17,10 +17,11 @@ typedef struct BoardEventType {
 typedef struct BoardType {
     bool has_color;
     Tile tiles[BOARD_WIDTH][BOARD_HEIGHT];
+    void *internal;
 } Board;
 
 void init_board(Board *board);
 void update_tile(Board *board, int x, int y, Tile tile);
 void repaint_board(Board *board);
 void close_board(Board *board);
-bool wait_for_input(int *x, int *y);
+bool wait_for_input(Board *board, int *x, int *y);

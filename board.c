@@ -11,15 +11,13 @@
 #define X_END BOARD_WIDTH * 4
 #define Y_END BOARD_HEIGHT * 2
 
-WINDOW *window;
-
 void color_char(int x, int y, char c, int color, Board *board) {
     if (board->has_color) {
-        wattron(window, COLOR_PAIR(color));
+        wattron(board->internal, COLOR_PAIR(color));
     }
-    mvwaddch(window, y, x, c);
+    mvwaddch(board->internal, y, x, c);
     if (board->has_color) {
-        wattroff(window, COLOR_PAIR(color));
+        wattroff(board->internal, COLOR_PAIR(color));
     }
 }
 
@@ -27,7 +25,7 @@ void init_board(Board *board) {
     initscr();
     curs_set(FALSE);
     noecho();
-    window = newwin(Y_END + 1, X_END + 1, 0, 0);
+    board->internal = newwin(Y_END + 1, X_END + 1, 0, 0);
     board->has_color = TRUE;
     if (board->has_color) {
         start_color();
@@ -36,7 +34,7 @@ void init_board(Board *board) {
         init_pair(NONE_TILE_COLOR, COLOR_BLUE, COLOR_BLUE);
         init_pair(BORDER_COLOR, COLOR_WHITE, COLOR_BLUE);
     }
-    keypad(window, TRUE);
+    keypad(board->internal, TRUE);
     mousemask(BUTTON1_CLICKED, NULL);
     for (int x = 0; x < BOARD_WIDTH; x++) {
         for (int y = 0; y < BOARD_WIDTH; y++) {
@@ -64,20 +62,20 @@ void set_tile(Board *board, int x, int y, Tile tile) {
                 attr = COLOR_PAIR(NONE_TILE_COLOR);
                 break;
         }
-        wattron(window, attr);
-        mvwaddch(window, 1 + y * 2, 1 + x * 4, tile);
-        mvwaddch(window, 1 + y * 2, 3 + x * 4, tile);
+        wattron(board->internal, attr);
+        mvwaddch(board->internal, 1 + y * 2, 1 + x * 4, tile);
+        mvwaddch(board->internal, 1 + y * 2, 3 + x * 4, tile);
     }
-    mvwaddch(window, 1 + y * 2, 2 + x * 4, tile);
+    mvwaddch(board->internal, 1 + y * 2, 2 + x * 4, tile);
     if (board->has_color) {
-        wattroff(window, attr);
+        wattroff(board->internal, attr);
     }
     board->tiles[x][y] = tile;
 }
 
 void update_tile(Board *board, int x, int y, Tile tile) {
     set_tile(board, x, y, tile);
-    wrefresh(window);
+    wrefresh(board->internal);
 }
 
 void repaint_board(Board *board) {
@@ -97,7 +95,7 @@ void repaint_board(Board *board) {
             set_tile(board, x, y, board->tiles[x][y]);
         }
     }
-    wrefresh(window);
+    wrefresh(board->internal);
 }
 
 void close_board(Board *board) {
@@ -118,9 +116,9 @@ int translate_position(int absoluteX, int absoluteY, int *relativeX, int *relati
     return 1;
 }
 
-bool wait_for_input(int *x, int *y) {
+bool wait_for_input(Board *board, int *x, int *y) {
     MEVENT event;
-    int ch = wgetch(window);
+    int ch = wgetch(board->internal);
     if (ch == KEY_MOUSE) {
         if (getmouse(&event) == OK) {
             if (translate_position(event.x, event.y, x, y)) {
@@ -130,5 +128,5 @@ bool wait_for_input(int *x, int *y) {
     } else if (ch == 'q' || ch == 'Q') {
         return false;
     }
-    return wait_for_input(x, y);
+    return wait_for_input(board, x, y);
 }

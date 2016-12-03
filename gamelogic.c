@@ -91,7 +91,6 @@ int check_add(Board *board, int x_pos, int y_pos, Tile tile, Point points[MAX_TI
             y += directions[i].y;
             if (board->tiles[x][y] == tile) {
                 n_points = tiles_found;
-                fprintf("x=%d y=%d", x, y); 
             } else if (board->tiles[x][y] != tile && board->tiles[x][y] != NONE) {
                 Point *point = &points[tiles_found++];
                 point->x = x;

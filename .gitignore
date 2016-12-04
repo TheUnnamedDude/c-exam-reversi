@@ -2,4 +2,5 @@ exam
 defaultboard*
 *.o
 vgcore*
+.txt*
 

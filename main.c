@@ -7,6 +7,10 @@ int main(void) {
     Board board;
     init_board(&board);
 
+    char player1_name[MAX_PLAYERNAME_SIZE + 1];
+    char player2_name[MAX_PLAYERNAME_SIZE + 1];
+    prompt_usernames(&board, player1_name, player2_name);
+
     int xPos;
     int yPos;
     Tile current_tile = WHITE;
@@ -27,5 +31,6 @@ int main(void) {
         }
     }
     close_board(&board);
+    printf("User1: %s, User2: %s\n", player1_name, player2_name);
     return 0;
 }

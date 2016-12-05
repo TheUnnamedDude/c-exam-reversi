@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <curses.h>
 #include <unistd.h>
+#include <string.h>
 #include "board.h"
 
 #define WHITE_TILE_COLOR 1
@@ -14,9 +15,11 @@
 typedef struct BoardInfo {
     WINDOW *main_window;
     WINDOW *scoreboard_window;
+    char player1_name[MAX_PLAYERNAME_SIZE + 1];
+    char player2_name[MAX_PLAYERNAME_SIZE + 1];
 } BoardInfo;
 
-void color_char(int x, int y, char c, int color, Board *board, WINDOW *window) {
+void color_char(Board *board, int x, int y, char c, int color, WINDOW *window) {
     if (board->has_color) {
         wattron(window, COLOR_PAIR(color));
     }
@@ -28,12 +31,12 @@ void color_char(int x, int y, char c, int color, Board *board, WINDOW *window) {
 
 void init_board(Board *board) {
     initscr();
-    curs_set(FALSE);
+    curs_set(false);
     noecho();
     BoardInfo *board_info = malloc(sizeof(BoardInfo));
     board_info->main_window = newwin(Y_END + 1, X_END + 1, 0, 0);
     board->internal = board_info;
-    board->has_color = TRUE;
+    board->has_color = true;
     if (board->has_color) {
         start_color();
         init_pair(WHITE_TILE_COLOR, COLOR_WHITE, COLOR_WHITE);
@@ -41,7 +44,7 @@ void init_board(Board *board) {
         init_pair(NONE_TILE_COLOR, COLOR_BLUE, COLOR_BLUE);
         init_pair(BORDER_COLOR, COLOR_WHITE, COLOR_BLUE);
     }
-    keypad(board_info->main_window, TRUE);
+    keypad(board_info->main_window, true);
     mousemask(BUTTON1_CLICKED, NULL);
     for (int x = 0; x < BOARD_WIDTH; x++) {
         for (int y = 0; y < BOARD_WIDTH; y++) {
@@ -55,29 +58,16 @@ void init_board(Board *board) {
     repaint_board(board);
 }
 
+void print_tile(Board *board, int x, int y, Tile tile, WINDOW *window) {
+    int color = tile == WHITE ? WHITE_TILE_COLOR : tile == BLACK ? BLACK_TILE_COLOR : NONE_TILE_COLOR;
+    color_char(board, x-1, y, ' ', color, window);
+    color_char(board, x, y, tile, color, window);
+    color_char(board, x+1, y, ' ', color, window);
+}
+
 void set_tile(Board *board, int x, int y, Tile tile) {
     BoardInfo *board_info = board->internal;
-    int attr;
-    if (board->has_color) {
-        switch (tile) {
-            case WHITE:
-                attr = COLOR_PAIR(WHITE_TILE_COLOR);
-                break;
-          case BLACK:
-                attr = COLOR_PAIR(BLACK_TILE_COLOR);
-                break;
-          case NONE:
-                attr = COLOR_PAIR(NONE_TILE_COLOR);
-                break;
-        }
-        wattron(board_info->main_window, attr);
-        mvwaddch(board_info->main_window, 1 + y * 2, 1 + x * 4, tile);
-        mvwaddch(board_info->main_window, 1 + y * 2, 3 + x * 4, tile);
-    }
-    mvwaddch(board_info->main_window, 1 + y * 2, 2 + x * 4, tile);
-    if (board->has_color) {
-        wattroff(board_info->main_window, attr);
-    }
+    print_tile(board, 2 + x * 4, 1 + y * 2, tile, board_info->main_window);
     board->tiles[x][y] = tile;
 }
 
@@ -92,11 +82,11 @@ void repaint_board(Board *board) {
     for (int x = 0; x <= X_END; x++) {
         for (int y = 0; y <= Y_END; y++) {
             if (x % 4 == 0 && y % 2 == 0) {
-                color_char(x, y, '+', BORDER_COLOR, board, board_info->main_window);
+                color_char(board, x, y, '+', BORDER_COLOR, board_info->main_window);
             } else if (x % 4 == 0) {
-                color_char(x, y, '|', BORDER_COLOR, board, board_info->main_window);
+                color_char(board, x, y, '|', BORDER_COLOR, board_info->main_window);
             } else if (y % 2 == 0) {
-                color_char(x, y, '-', BORDER_COLOR, board, board_info->main_window);
+                color_char(board, x, y, '-', BORDER_COLOR, board_info->main_window);
             }
         }
     }
@@ -143,33 +133,55 @@ bool wait_for_input(Board *board, int *x, int *y) {
     return wait_for_input(board, x, y);
 }
 
-void print_user_prompt(WINDOW *w, int y, Tile prompt) {
+void print_user_prompt(Board *board, WINDOW *w, int y, Tile prompt) {
     mvwprintw(w, y, 0, "|");
-    mvwprintw(w, y, 1, " %c ", prompt);
+    print_tile(board, 2, y, prompt, w);
     mvwprintw(w, y, 4, "|                  |");
     mvwprintw(w, y+1, 0, "+---+------------------+");
 }
 
 void prompt_usernames(Board *board, char player1_name[MAX_PLAYERNAME_SIZE + 1], char player2_name[MAX_PLAYERNAME_SIZE + 1]) {
-    WINDOW *prompt_window = newwin(5, 24, 3, 3);
+    WINDOW *prompt_window = newwin(7, 24, 3, 3);
     curs_set(true);
     echo();
-    mvwprintw(prompt_window, 0, 0, "+---+------------------+");
-    print_user_prompt(prompt_window, 1, WHITE);
-    print_user_prompt(prompt_window, 3, BLACK);
-    mvwgetnstr(prompt_window, 1, 6, player1_name, 16);
-    mvwgetnstr(prompt_window, 3, 6, player2_name, 16);
+    mvwprintw(prompt_window, 0, 0, "+----------------------+");
+    mvwprintw(prompt_window, 1, 0, "|Please enter usernames|");
+    mvwprintw(prompt_window, 2, 0, "+---+------------------+");
+    print_user_prompt(board, prompt_window, 3, WHITE);
+    print_user_prompt(board, prompt_window, 5, BLACK);
+    mvwgetnstr(prompt_window, 3, 6, player1_name, 16);
+    mvwgetnstr(prompt_window, 5, 6, player2_name, 16);
     wrefresh(prompt_window);
     delwin(prompt_window);
-    curs_set(true);
+    curs_set(false);
     noecho();
     repaint_board(board);
 }
 
 void init_scoreboard(Board *board, char player1_name[MAX_PLAYERNAME_SIZE + 1], char player2_name[MAX_PLAYERNAME_SIZE + 1]) {
-
+    BoardInfo *board_info = board->internal;
+    memcpy(board_info->player1_name, player1_name, sizeof(board_info->player1_name));
+    memcpy(board_info->player2_name, player2_name, sizeof(board_info->player2_name));
+    board_info->scoreboard_window = newwin(5, 15 + MAX_PLAYERNAME_SIZE, 0, X_END + 1 + 5);
 }
 
 void update_scoreboard(Board *board, int player1_score, int player2_score, Tile turn) {
-
+    BoardInfo *board_info = board->internal;
+    WINDOW *scoreboard_window = board_info->scoreboard_window;
+    char username_dashes[MAX_PLAYERNAME_SIZE + 1];
+    memset(username_dashes, '-', sizeof(username_dashes) - 1);
+    username_dashes[MAX_PLAYERNAME_SIZE] = '\0';
+    char username_spaces[MAX_PLAYERNAME_SIZE + 1];
+    memset(username_spaces, ' ', sizeof(username_spaces) - 1);
+    username_dashes[MAX_PLAYERNAME_SIZE] = '\0';
+    mvwprintw(scoreboard_window, 0, 0, "+---+----+-%s---+", username_dashes);
+    mvwprintw(scoreboard_window, 1, 0, "|   | %-2d | %s %c |", player1_score, username_spaces, turn == WHITE ? '<' : ' ');
+    mvwprintw(scoreboard_window, 2, 0, "+---+----+-%s---+", username_dashes);
+    mvwprintw(scoreboard_window, 3, 0, "|   | %-2d | %s %c |", player2_score, username_spaces, turn == BLACK ? '<' : ' ');
+    mvwprintw(scoreboard_window, 4, 0, "+---+----+-%s---+", username_dashes);
+    mvwprintw(scoreboard_window, 1, 13, board_info->player1_name);
+    mvwprintw(scoreboard_window, 3, 13, board_info->player2_name);
+    print_tile(board, 2, 1, WHITE, scoreboard_window);
+    print_tile(board, 2, 3, BLACK, scoreboard_window);
+    wrefresh(scoreboard_window);
 }

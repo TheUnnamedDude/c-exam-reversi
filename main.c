@@ -11,10 +11,13 @@ int main(void) {
     char player2_name[MAX_PLAYERNAME_SIZE + 1];
     prompt_usernames(&board, player1_name, player2_name);
 
+    init_scoreboard(&board, player1_name, player2_name);
+
     int xPos;
     int yPos;
     Tile current_tile = WHITE;
     int nPoints = 0;
+    update_scoreboard(&board, 0, 0, current_tile);
     while (wait_for_input(&board, &xPos, &yPos)) {
         Point points[MAX_TILE_CHANGE];
         nPoints = check_add(&board, xPos, yPos, current_tile, points);
@@ -29,6 +32,7 @@ int main(void) {
                 current_tile = WHITE;
             }
         }
+        update_scoreboard(&board, 0, 0, current_tile);
     }
     close_board(&board);
     printf("User1: %s, User2: %s\n", player1_name, player2_name);

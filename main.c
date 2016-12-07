@@ -7,11 +7,9 @@ int main(void) {
     Board board;
     init_board(&board);
 
-    char player1_name[MAX_PLAYERNAME_SIZE + 1];
-    char player2_name[MAX_PLAYERNAME_SIZE + 1];
-    prompt_usernames(&board, player1_name, player2_name);
+    prompt_usernames(&board);
 
-    init_scoreboard(&board, player1_name, player2_name);
+    init_scoreboard(&board);
 
     int xPos;
     int yPos;
@@ -34,7 +32,7 @@ int main(void) {
         }
         update_scoreboard(&board, 0, 0, current_tile);
     }
+    printf("User1: %s, User2: %s\n", board.player1_name, board.player2_name);
     close_board(&board);
-    printf("User1: %s, User2: %s\n", player1_name, player2_name);
     return 0;
 }

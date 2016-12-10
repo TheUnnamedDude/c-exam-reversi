@@ -8,3 +8,4 @@ typedef struct Point {
 } Point;
 
 int check_add(Board *board, int xPos, int yPos, Tile tile, Point points[MAX_TILE_CHANGE]);
+bool can_move(Board *board, Tile tile);

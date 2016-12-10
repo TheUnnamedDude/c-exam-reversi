@@ -2,6 +2,7 @@
 #include <curses.h>
 #include <unistd.h>
 #include <string.h>
+
 #include "board.h"
 
 #define WHITE_TILE_COLOR 1
@@ -12,13 +13,13 @@
 #define X_END BOARD_WIDTH * 4
 #define Y_END BOARD_HEIGHT * 2
 
-void color_char(Board *board, int x, int y, char c, int color, WINDOW *window) {
+void color_on(Board *board, WINDOW *window, int color) {
     if (board->has_color) {
         wattron(window, COLOR_PAIR(color));
     }
+}
 
-    mvwaddch(window, y, x, c);
-
+void color_off(Board *board, WINDOW *window, int color) {
     if (board->has_color) {
         wattroff(window, COLOR_PAIR(color));
     }
@@ -28,8 +29,7 @@ void init_board(Board *board) {
     initscr();
     curs_set(false);
     noecho();
-    BoardInfo *board_info = &board->internal;
-    board_info->main_window = newwin(Y_END + 1, X_END + 1, 0, 0);
+    board->main_window = newwin(Y_END + 1, X_END + 1, 0, 0);
     board->has_color = true;
 
     if (board->has_color) {
@@ -40,7 +40,7 @@ void init_board(Board *board) {
         init_pair(BORDER_COLOR, COLOR_WHITE, COLOR_BLUE);
     }
 
-    keypad(board_info->main_window, true);
+    keypad(board->main_window, true);
     mousemask(BUTTON1_CLICKED, NULL);
 
     for (int x = 0; x < BOARD_WIDTH; x++) {
@@ -58,37 +58,72 @@ void init_board(Board *board) {
 
 void print_tile(Board *board, int x, int y, Tile tile, WINDOW *window) {
     int color = tile == WHITE ? WHITE_TILE_COLOR : tile == BLACK ? BLACK_TILE_COLOR : NONE_TILE_COLOR;
-    color_char(board, x-1, y, ' ', color, window);
-    color_char(board, x, y, tile, color, window);
-    color_char(board, x+1, y, ' ', color, window);
+    color_on(board, window, color);
+    mvwprintw(window, y, x-1, " %c ", tile);
+    color_off(board, window, color);
 }
 
 void set_tile(Board *board, int x, int y, Tile tile) {
-    BoardInfo *board_info = &board->internal;
-    print_tile(board, 2 + x * 4, 1 + y * 2, tile, board_info->main_window);
+    print_tile(board, 2 + x * 4, 1 + y * 2, tile, board->main_window);
     board->tiles[x][y] = tile;
+    update_player_score(board);
 }
 
 void update_tile(Board *board, int x, int y, Tile tile) {
-    BoardInfo *board_info = &board->internal;
     set_tile(board, x, y, tile);
-    wrefresh(board_info->main_window);
+    wrefresh(board->main_window);
 }
 
-void repaint_board(Board *board) {
-    BoardInfo *board_info = &board->internal;
+void update_player_score(Board *board) {
+    int player1_score = 0;
+    int player2_score = 0;
+    int tiles_left = 0;
 
-    for (int x = 0; x <= X_END; x++) {
-        for (int y = 0; y <= Y_END; y++) {
-            if (x % 4 == 0 && y % 2 == 0) {
-                color_char(board, x, y, '+', BORDER_COLOR, board_info->main_window);
-            } else if (x % 4 == 0) {
-                color_char(board, x, y, '|', BORDER_COLOR, board_info->main_window);
-            } else if (y % 2 == 0) {
-                color_char(board, x, y, '-', BORDER_COLOR, board_info->main_window);
+    for (int x = 0; x < BOARD_WIDTH; x++) {
+        for (int y = 0; y < BOARD_HEIGHT; y++) {
+            if (board->tiles[x][y] == WHITE) {
+                player1_score++;
+            } else if (board->tiles[x][y] == BLACK) {
+                player2_score++;
+            } else {
+                tiles_left++;
             }
         }
     }
+
+    board->player1_score = player1_score;
+    board->player2_score = player2_score;
+    board->tiles_left = tiles_left;
+}
+
+void repaint_board(Board *board) {
+    color_on(board, board->main_window, BORDER_COLOR);
+
+    box(board->main_window, 0, 0);
+
+    for (int x = 1; x < X_END; x++) {
+        for (int y = 1; y < Y_END; y++) {
+            if (x % 4 == 0 && y % 2 == 0) {
+                mvwaddch(board->main_window, y, x, ACS_PLUS);
+            } else if (x % 4 == 0) {
+                mvwaddch(board->main_window, y, x, ACS_VLINE);
+            } else if (y % 2 == 0) {
+                mvwaddch(board->main_window, y, x, ACS_HLINE);
+            }
+        }
+    }
+
+    for (int x = 4; x < X_END; x+=4) {
+        mvwaddch(board->main_window, 0, x, ACS_TTEE);
+        mvwaddch(board->main_window, Y_END, x, ACS_BTEE);
+    }
+
+    for (int y = 2; y < Y_END; y+=2) {
+        mvwaddch(board->main_window, y, 0, ACS_LTEE);
+        mvwaddch(board->main_window, y, X_END, ACS_RTEE);
+    }
+
+    color_off(board, board->main_window, BORDER_COLOR);
 
     for (int x = 0; x < BOARD_WIDTH; x++) {
         for (int y = 0; y < BOARD_HEIGHT; y++) {
@@ -96,7 +131,7 @@ void repaint_board(Board *board) {
         }
     }
 
-    wrefresh(board_info->main_window);
+    wrefresh(board->main_window);
 }
 
 void close_board(Board *board) {
@@ -121,11 +156,10 @@ int translate_position(int absoluteX, int absoluteY, int *relativeX, int *relati
 }
 
 bool wait_for_input(Board *board, int *x, int *y) {
-    BoardInfo *board_info = &board->internal;
     MEVENT event;
-    int ch = wgetch(board_info->main_window);
+    int ch = wgetch(board->main_window);
 
-    if (ch == KEY_MOUSE) {
+    if (ch == KEY_MOUSE && x != NULL && y != NULL) {
         if (getmouse(&event) == OK) {
             if (translate_position(event.x, event.y, x, y)) {
                 return true; // We got input, lets just give that back to the user
@@ -139,10 +173,12 @@ bool wait_for_input(Board *board, int *x, int *y) {
 }
 
 void print_user_prompt(Board *board, WINDOW *w, int y, Tile prompt) {
-    mvwprintw(w, y, 0, "|");
+    int max_x = getmaxx(w);
+    mvwhline(w, y - 1, 1, 0, max_x - 2);
+    mvwaddch(w, y - 1, 0, ACS_LTEE);
+    mvwaddch(w, y - 1, max_x - 1, ACS_RTEE);
+    mvwaddch(w, y, 4, ACS_VLINE);
     print_tile(board, 2, y, prompt, w);
-    mvwprintw(w, y, 4, "|                  |");
-    mvwprintw(w, y+1, 0, "+---+------------------+");
 }
 
 void prompt_usernames(Board *board) {
@@ -150,11 +186,14 @@ void prompt_usernames(Board *board) {
     curs_set(true);
     echo();
 
-    mvwprintw(prompt_window, 0, 0, "+----------------------+");
-    mvwprintw(prompt_window, 1, 0, "|Please enter usernames|");
-    mvwprintw(prompt_window, 2, 0, "+---+------------------+");
+    box(prompt_window, 0, 0);
+    mvwprintw(prompt_window, 1, 1, "Please enter usernames");
     print_user_prompt(board, prompt_window, 3, WHITE);
     print_user_prompt(board, prompt_window, 5, BLACK);
+
+    mvwaddch(prompt_window, 2, 4, ACS_TTEE);
+    mvwaddch(prompt_window, 4, 4, ACS_PLUS);
+    mvwaddch(prompt_window, 6, 4, ACS_BTEE);
 
     mvwgetnstr(prompt_window, 3, 6, board->player1_name, MAX_PLAYERNAME_SIZE);
     mvwgetnstr(prompt_window, 5, 6, board->player2_name, MAX_PLAYERNAME_SIZE);
@@ -168,31 +207,119 @@ void prompt_usernames(Board *board) {
 }
 
 void init_scoreboard(Board *board) {
-    BoardInfo *board_info = &board->internal;
-    board_info->scoreboard_window = newwin(5, 15 + MAX_PLAYERNAME_SIZE, 0, X_END + 1 + 5);
+    board->scoreboard_window = newwin(5, 15 + MAX_PLAYERNAME_SIZE, 0, X_END + 1 + 5);
 }
 
-void update_scoreboard(Board *board, int player1_score, int player2_score, Tile turn) {
-    BoardInfo *board_info = &board->internal;
-    WINDOW *scoreboard_window = board_info->scoreboard_window;
+void update_scoreboard(Board *board, Tile turn) {
+    WINDOW *scoreboard_window = board->scoreboard_window;
+    int max_x = getmaxx(scoreboard_window);
 
-    char username_dashes[MAX_PLAYERNAME_SIZE + 1];
-    memset(username_dashes, '-', sizeof(username_dashes));
-    username_dashes[MAX_PLAYERNAME_SIZE] = '\0';
-    char username_spaces[MAX_PLAYERNAME_SIZE + 1];
-    memset(username_spaces, ' ', sizeof(username_spaces));
-    username_spaces[MAX_PLAYERNAME_SIZE] = '\0';
-
-    mvwprintw(scoreboard_window, 0, 0, "+---+----+-%s---+", username_dashes);
-    mvwprintw(scoreboard_window, 1, 0, "|   | %-2d | %s %c |", player1_score, username_spaces, turn == WHITE ? '<' : ' ');
-    mvwprintw(scoreboard_window, 2, 0, "+---+----+-%s---+", username_dashes);
-    mvwprintw(scoreboard_window, 3, 0, "|   | %-2d | %s %c |", player2_score, username_spaces, turn == BLACK ? '<' : ' ');
-    mvwprintw(scoreboard_window, 4, 0, "+---+----+-%s---+", username_dashes);
     mvwprintw(scoreboard_window, 1, 11, board->player1_name);
     mvwprintw(scoreboard_window, 3, 11, board->player2_name);
 
     print_tile(board, 2, 1, WHITE, scoreboard_window);
+    mvwprintw(scoreboard_window, 1, 6, "%-2d", board->player1_score);
+    mvwaddch(scoreboard_window, 1, 12 + MAX_PLAYERNAME_SIZE, turn == WHITE ? '<' : ' ');
     print_tile(board, 2, 3, BLACK, scoreboard_window);
+    mvwprintw(scoreboard_window, 3, 6, "%-2d", board->player2_score);
+    mvwaddch(scoreboard_window, 3, 12 + MAX_PLAYERNAME_SIZE, turn == BLACK ? '<' : ' ');
+
+    box(scoreboard_window, 0, 0);
+
+
+    // Add TTEE over player 1 to avoid gaps
+    mvwaddch(scoreboard_window, 0, 4, ACS_TTEE);
+    mvwaddch(scoreboard_window, 0, 9, ACS_TTEE);
+    // Add chars between columns for player 1
+    mvwaddch(scoreboard_window, 1, 4, ACS_VLINE);
+    mvwaddch(scoreboard_window, 1, 9, ACS_VLINE);
+
+    // Add a line between players and a plus to avoid gaps
+    mvwaddch(scoreboard_window, 2, 0, ACS_LTEE);
+    mvwhline(scoreboard_window, 2, 1, 0, max_x - 2);
+    mvwaddch(scoreboard_window, 2, 4, ACS_PLUS);
+    mvwaddch(scoreboard_window, 2, 9, ACS_PLUS);
+    mvwaddch(scoreboard_window, 2, max_x - 1, ACS_RTEE);
+
+    // Add chars between columns for player 2
+    mvwaddch(scoreboard_window, 3, 4, ACS_VLINE);
+    mvwaddch(scoreboard_window, 3, 9, ACS_VLINE);
+
+    // Add BTEE under player 2 to avoid gaps
+    mvwaddch(scoreboard_window, 4, 4, ACS_BTEE);
+    mvwaddch(scoreboard_window, 4, 9, ACS_BTEE);
 
     wrefresh(scoreboard_window);
+}
+
+void close_scoreboard(Board *board) {
+    if (board->scoreboard_window != NULL) {
+        wclear(board->scoreboard_window);
+        wrefresh(board->scoreboard_window);
+        delwin(board->scoreboard_window);
+    }
+}
+
+void show_game_over_screen(Board *board)  {
+    int width = 27 + MAX_PLAYERNAME_SIZE;
+    WINDOW *go_screen = newwin(7, width, 5, 2);
+
+    char *winner_name = NULL;
+    char *loser_name = NULL;
+    int winner_score = 0;
+    int loser_score = 0;
+
+    // Ugly if else to set the variables for the winner and loser info
+    if (board->player1_score > board->player2_score) {
+        winner_name = &board->player1_name[0];
+        loser_name = &board->player2_name[0];
+        winner_score = board->player1_score;
+        loser_score = board->player2_score;
+    } else {
+        winner_name = &board->player2_name[0];
+        loser_name = &board->player1_name[0];
+        winner_score = board->player2_score;
+        loser_score = board->player1_score;
+    }
+    box(go_screen, 0, 0);
+    
+    // Nothing should ever print over the winner and loser names anyway
+    mvwprintw(go_screen, 1, 12, winner_name);
+    mvwprintw(go_screen, 1, 14 + MAX_PLAYERNAME_SIZE, "%3d points", winner_score);
+    mvwprintw(go_screen, 3, 12, loser_name);
+    mvwprintw(go_screen, 3, 14 + MAX_PLAYERNAME_SIZE, "%3d points", loser_score);
+
+    // Add TTEE's to the top for no gaps
+    mvwaddch(go_screen, 0, 10, ACS_TTEE);
+    mvwaddch(go_screen, 0, 12 + MAX_PLAYERNAME_SIZE, ACS_TTEE);
+
+    // Print winner collumn
+    mvwprintw(go_screen, 1, 2, "Winner");
+    mvwaddch(go_screen, 1, 10, ACS_VLINE);
+    mvwaddch(go_screen, 1, 12 + MAX_PLAYERNAME_SIZE, ACS_VLINE);
+
+    // Print line between winner and loser + add chars for no gaps
+    mvwaddch(go_screen, 2, 0, ACS_LTEE);
+    mvwhline(go_screen, 2, 1, 0, width - 2);
+    mvwaddch(go_screen, 2, 10, ACS_PLUS);
+    mvwaddch(go_screen, 2, 12 + MAX_PLAYERNAME_SIZE, ACS_PLUS);
+    mvwaddch(go_screen, 2, width - 1, ACS_RTEE);
+
+    // Print the loser collumn + add chars for no gaps
+    mvwprintw(go_screen, 3, 2, "Loser");
+    mvwaddch(go_screen, 3, 10, ACS_VLINE);
+    mvwaddch(go_screen, 3, 12 + MAX_PLAYERNAME_SIZE, ACS_VLINE);
+
+    // Print the line between loser and info box + add chars for no gaps
+    mvwaddch(go_screen, 4, 0, ACS_LTEE);
+    mvwhline(go_screen, 4, 1, 0, width - 2);
+    mvwaddch(go_screen, 4, 10, ACS_BTEE);
+    mvwaddch(go_screen, 4, 12 + MAX_PLAYERNAME_SIZE, ACS_BTEE);
+    mvwaddch(go_screen, 4, width - 1, ACS_RTEE);
+
+    // Print the content of the info box
+    mvwprintw(go_screen, 5, 1, "Press q to quit");
+
+    wrefresh(go_screen);
+    while (wait_for_input(board, NULL, NULL)); // Wait for the  user to press the exit button
 }

@@ -22,6 +22,8 @@ int check_add(Board *board, int x_pos, int y_pos, Tile tile, Point points[MAX_TI
             if (board->tiles[x][y] == tile) {
                 n_points = tiles_found;
             } else if (board->tiles[x][y] != tile && board->tiles[x][y] != NONE) {
+                if (points == NULL)
+                    continue;
                 Point *point = &points[tiles_found++];
                 point->x = x;
                 point->y = y;
@@ -32,4 +34,15 @@ int check_add(Board *board, int x_pos, int y_pos, Tile tile, Point points[MAX_TI
     }
 
     return n_points;
+}
+
+bool can_move(Board *board, Tile tile) {
+    for (int x = 0; x < BOARD_WIDTH; x++) {
+        for (int y = 0; y < BOARD_HEIGHT; y++) {
+            if (check_add(board, x, y, tile, NULL)) {
+                return true;
+            }
+        }
+    }
+    return false;
 }

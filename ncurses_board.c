@@ -49,10 +49,6 @@ void init_board(Board *board) {
         }
     }
 
-    board->tiles[3][3] = WHITE;
-    board->tiles[4][3] = BLACK;
-    board->tiles[3][4] = BLACK;
-    board->tiles[4][4] = WHITE;
     repaint_board(board);
 }
 

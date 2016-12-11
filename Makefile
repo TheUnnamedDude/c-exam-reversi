@@ -1,9 +1,9 @@
 # TODO: Change this back to using gcc when done writing
 CC=clang
 CFLAGS=-I -Wall -Wextra -std=c11 -O0 -g -Dncurses
-HEADERS=board.h gamelogic.h
+HEADERS=board.h gamelogic.h filelog.h
 EXEC=exam
-SOURCES=ncurses_board.c main.c gamelogic.c
+SOURCES=ncurses_board.c main.c gamelogic.c filelog.c
 OBJECTS=$(SOURCES:.c=.o)
 LDFLAGS=-lncurses
 

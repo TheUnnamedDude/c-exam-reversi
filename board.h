@@ -1,3 +1,5 @@
+#ifndef BOARD_SEEN
+#define BOARD_SEEN
 #include <stdbool.h>
 #ifdef ncurses
 #include <curses.h>
@@ -45,3 +47,4 @@ bool wait_for_input(Board *board, int *x, int *y);
 void update_player_score(Board *board);
 void show_game_over_screen(Board *board);
 void close_scoreboard(Board *board);
+#endif

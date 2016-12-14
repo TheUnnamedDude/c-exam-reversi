@@ -20,8 +20,6 @@ typedef struct BoardEventType {
     int y;
 } BoardEvent;
 
-typedef struct BoardInfo BoardInfo;
-
 typedef struct BoardType {
     bool has_color;
     Tile tiles[BOARD_WIDTH][BOARD_HEIGHT];

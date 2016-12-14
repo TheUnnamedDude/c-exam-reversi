@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
     Tile current_tile = WHITE;
 
     int nPoints = 0;
-    int moves;
+    int moves = 0;
 
     update_scoreboard(&board, current_tile);
 

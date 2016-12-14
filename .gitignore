@@ -3,4 +3,5 @@ defaultboard*
 *.o
 vgcore*
 *.txt*
-
+!README.txt
+!logfile_format.txt

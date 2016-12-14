@@ -1,0 +1,20 @@
+StartGameInfo
+    Boardsize: 8x8
+    Starttiles: 4
+    Player1Name: Player1
+    Player2Name: Player2
+EndGameInfo
+StartGame
+    SetTile 3,3 W
+    SetTile 3,4 B
+    SetTile 4,3 B
+    SetTile 4,4 W
+    UserClick 5,3 W
+    SetTile 4,3 W
+    SetTile 5,3 W
+EndGame
+StartStatistics
+    Player1Score: 4
+    Player2Score: 1
+    TotalMoves: 1
+EndStatistics

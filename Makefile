@@ -1,5 +1,4 @@
-# TODO: Change this back to using gcc when done writing
-CC=clang
+CC=gcc
 CFLAGS=-I -Wall -Wextra -std=c11 -O0 -g -Dncurses
 HEADERS=board.h gamelogic.h filelog.h
 EXEC=exam
